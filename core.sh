@@ -4,7 +4,6 @@ echo "Installing core development libraries (a lot of stuff :P)..."
 sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install -y  make \
                     build-essential \
-                    openssh-client \
                     openssh-server \
                     socat \
                     chrpath \
@@ -14,7 +13,6 @@ sudo apt-get install -y  make \
                     doxygen \
                     cmake \
                     libudev-dev \
-                    liblz4 \
                     zstd \
                     libboost-dev \
                     qtbase5-dev \
@@ -22,8 +20,6 @@ sudo apt-get install -y  make \
                     fop \
                     software-properties-common \
                     linux-headers-$(uname -r) \
-                    linux-image-extra-$(uname -r) \
-                    linux-image-extra-virtual \
                     libssl-dev \
                     libffi-dev \
                     zlib1g-dev \
