@@ -4,6 +4,9 @@ echo "Installing core development libraries (a lot of stuff :P)..."
 sudo apt-get update && sudo apt-get upgrade
 sudo apt-get install -y  make \
                     build-essential \
+                    gcc \
+                    perl \
+                    make \
                     openssh-server \
                     socat \
                     chrpath \
@@ -52,16 +55,13 @@ sudo apt-get install -y  make \
                     tcl8.6-dev \
                     tk8.6-dev \
                     python-tk \
-                    python-dev \
                     python3-pip \
                     vim \
                     curl \
                     nano \
                     members \
-                    exfat-utils \
                     exfat-fuse \
                     unrar \
-                    mcelog \
                     net-tools
 
 # enable syntax highlighting for all the available languages
