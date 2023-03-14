@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 echo "Installing core development libraries (a lot of stuff :P)..."
-apt-get update && apt-get upgrade
-apt-get install -y  make \
+sudo apt-get update && sudo apt-get upgrade
+sudo apt-get install -y  make \
                     build-essential \
                     openssh-client \
                     openssh-server \
