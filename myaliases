@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#alias mkcr='make CONFIGURATION=arm-Release'
+#alias mkrd='make CONFIGURATION=arm-Debug'
+alias hs='history'
+alias clion='${HOME}/clion-2019.2.2/bin/clion.sh &'
+alias ll='ls -l'
+alias ls='ls --color=auto'

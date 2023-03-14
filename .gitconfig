@@ -1,0 +1,15 @@
+[user]
+	email = siddharth.singh@blockeng.com
+	name = siddharth singh
+[push]
+	default = matching
+[alias]
+  co = checkout
+  ci = commit
+  st = status
+  br = branch
+  hist = log --pretty=format:\"%h %ad | %s%d [%an]\" --graph --date=short
+  type = cat-file -t
+  dump = cat-file -p
+  sub = submodule
+  smu = submodule update --init --recursive

@@ -1,0 +1,658 @@
+#!/bin/bash
+
+rangecheck() #@ USAGE: rangecheck int [low [high]]
+    if [ "$1" -lt ${2:-10} ]
+    then
+        printf "Error: Not in range\n" >&2
+        printf "Not in range\n";
+        return 1
+    elif [ "$1" -gt ${3:-20} ]
+    then
+        printf "Error: Not in range\n" >&2
+        printf "Not in range\n"
+        return 2
+    else
+        printf "Error: In range\n" >&2
+        printf "In range\n";
+        return 0
+    fi
+    
+uinfo() #@ USAGE: uinfo [file]
+{
+printf "%12s: %s\n" \
+USER "${USER:-No value assigned}" \
+PWD "${PWD:-No value assigned}" \
+COLUMNS "${COLUMNS:-No value assigned}" \
+LINES "${LINES:-No value assigned}" \
+SHELL "${SHELL:-No value assigned}" \
+HOME "${HOME:-No value assigned}" \
+TERM "${TERM:-No value assigned}"
+} > ${1:-/dev/fd/1}
+
+_max3() { #@ Sort 3 integers and store in $_MAX3, $_MID3 and $_MIN3
+[ $# -ne 3 ] && return 5
+[ $1 -gt $2 ] && { set -- $2 $1 $3; }
+[ $2 -gt $3 ] && { set -- $1 $3 $2; }
+[ $1 -gt $2 ] && { set -- $2 $1 $3; }
+_MAX3=$3
+_MID3=$2
+_MIN3=$1
+}
+
+_repeat()
+{
+#@ USAGE: _repeat string number
+_REPEAT=
+while [ ${#_REPEAT} -lt $2 ]
+do
+_REPEAT=$_REPEAT$1
+done
+}
+
+loopWord()
+{
+    local var=$1
+    while [ -n "$var" ]; do temp=${var#?}; ch=${var%"$temp"}; 
+        printf "%c\n" "$ch"; 
+        var=$temp; 
+    done
+}
+
+reverseWord()
+{
+    local var=$1
+    _REVERSED_STR=
+    while [ -n "$var" ]; do temp=${var%?}; ch=${var#"$temp"}; 
+        _REVERSED_STR=${_REVERSED_STR}${ch}
+        var=$temp; 
+    done
+    printf "%s\n" "$_REVERSED_STR"; 
+}
+
+upWord()
+{
+    local var="$@"
+    var=$( printf "$var" | tr 'a-z' 'A-Z' )
+    _UPPER_CASE_STR="$var"
+}
+
+compareIgnoreCase()
+{
+    local var1=$1
+    local var2=$2
+    upWord $var1
+    local var3=$_UPPER_CASE_STR
+    upWord $var2
+    local var4=$_UPPER_CASE_STR
+    #printf "%s\n" "$var3"; 
+    #printf "%s\n" "$var4"; 
+    if [ "$var3" = "$var4" ]; then
+        printf "match\n"
+    else
+        printf "no match\n"
+    fi
+}
+
+validname()
+{
+    case $1 in
+        [!a-zA-Z_]* | *[!a-zA-z0-9_]* ) return 1;;
+        * ) return 0;;
+    esac
+}
+
+cd() #@ Change directory, storing new directory on DIRSTACK
+{
+    local dir error ## variables for directory and return code
+    while : ## ignore all options
+    do
+        case $1 in
+            --) break ;;
+            -*) shift ;;
+            *) break ;;
+        esac
+    done
+    dir=$1
+    if [ -n "$dir" ] ## if a $dir is not empty
+        then
+            pushd "$dir" ## change directory
+        else
+            pushd "$HOME" ## go HOME if nothing on the command line
+    fi 2>/dev/null ## error message should come from cd, not pushd
+    error=$? ## store pushd's exit code
+    if [ $error -ne 0 ] ## failed, print error message
+    then
+        builtin cd "$dir" ## let the builtin cd provide the error message
+    fi
+    return "$error" ## leave with pushd's exit code
+} > /dev/null
+
+#@ DESCRIPTION: print error message and exit with supplied return code
+#@ USAGE: die STATUS [MESSAGE]
+die()
+{   
+    error=$1
+    shift
+    if [ -n "$*" ] 
+    then
+        printf "%s\n" "$*" >&2
+    fi
+    #exit "$error"
+}
+
+parseopts()
+{
+    while getopts chv var
+    do
+        case $var in
+            c) compounds=$compoundfile ;;
+            h) usage; exit ;;
+            v) version; exit ;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    if [ -n "$*" ] 
+    then
+        printf "%s\n" "$*" >&2
+    fi
+}
+
+mknr()
+{
+    make CONFIGURATION=native-Release jobs=4 SKIP_AE=true
+}
+
+mkcr()
+{
+    make CONFIGURATION=arm-Release jobs=4 SKIP_AE=true
+}
+
+mkcd()
+{
+    make CONFIGURATION=arm-Debug
+}
+
+mkclb()
+{
+    make clobber
+}
+
+fdev()
+{
+    if [ -n "$1" ]; then 
+        find-devices $1
+    else
+       find-devices
+    fi 
+}
+
+fdev67()
+{
+    fdev 67
+}
+
+SSH_KEY_FILE=${HOME}/.ssh/blockKey.openSSH
+
+bdic()
+{
+    mkcr || exit
+    local deviceip=${1:-"10.35.67.95"}
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl stop blkqcl-controller' || exit
+    scp -i ${SSH_KEY_FILE} ./Builds/arm-Release/BLKQCL-Controller root@${deviceip}:/var/lib/BLKQCL/Controller/ || exit
+}
+
+bdicr()
+{
+    local deviceip=${1:-"10.35.67.95"}
+    bdic ${deviceip} || exit
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl start blkqcl-controller'
+}
+
+dic()
+{
+    #mkcr || exit
+    local deviceip=${1:-"10.35.67.95"}
+    #printf "device ip = %s\n" "${deviceip}"
+    #printf "Stopping blkqcl-controller\n"
+    #ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl stop blkqcl-controller'
+    printf "Copying BLKQCL-Controller\n"
+    arm-linux-gnueabihf-strip ./Builds/arm-Release/BLKQCL-Controller -o ./Builds/arm-Release/BLKQCL-Controller.mystripped
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'mv /opt/BLKQCL/BLKQCL-Controller /opt/BLKQCL/BLKQCL-Controller.old'
+    scp -i ${SSH_KEY_FILE} ./Builds/arm-Release/BLKQCL-Controller.mystripped root@${deviceip}:/opt/BLKQCL/BLKQCL-Controller
+    #ssh -i ${SSH_KEY_FILE} root@${deviceip} 'mv /opt/BLKQCL/BLKQCL-Controller.mystripped /opt/BLKQCL/BLKQCL-Controller'
+    #scp -i ${SSH_KEY_FILE} ./Builds/arm-Release/BLKQCL-Controller root@${deviceip}:/opt/BLKQCL/BLKQCL-Controller
+}
+
+dicr()
+{
+    local deviceip=${1:-"10.35.67.95"}
+    #printf "device ip = %s\n" "${deviceip}"
+    dic ${deviceip} 
+    printf "ReStarting blkqcl-controller\n"
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl restart blkqcl-controller'
+}
+
+dalw()
+{
+    #mkcr || exit
+    local deviceip=${1:-"10.35.67.95"}
+    #printf "device ip = %s\n" "${deviceip}"
+    printf "Stopping blkqcl-LaserWarn-Service\n"
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl stop blkqcl-LaserWarn-Service'
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'mkdir -p /var/lib/BLKQCL-AppInstalls/LaserWarn/'
+    printf "Copying LaserWarn-AppServic\n"
+    scp -i ${SSH_KEY_FILE} ./Builds/arm-Release/LaserWarn-AppService root@${deviceip}:/var/lib/BLKQCL-AppInstalls/LaserWarn/
+}
+
+dalwr()
+{
+    local deviceip=${1:-"10.35.67.95"}
+    #printf "device ip = %s\n" "${deviceip}"
+    dalw ${deviceip}
+    printf "Starting blkqcl-LaserWarn-Service\n"
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl start blkqcl-LaserWarn-Service'
+}
+    
+gitsub()
+{
+	git submodule update --init --recursive
+}
+
+cpic() #cpic <fieName> <DC_IP> <location>
+{
+	ssh -i ${SSH_KEY_FILE} root@$2 'mkdir -p /tmp/tmploc' || exit
+	scp -i ${SSH_KEY_FILE} $1 root@$2:/tmp/tmploc/ || exit
+	filename=$(basename $1)
+	#echo $(basename "${filepath%.*}")
+	scpcmd="scp -i ""$""{HOME}/.ssh/blockKey.openSSH"" /tmp/tmploc/${filename} root@192.168.254.2:${3}/${filename}"
+	remotescpcmd="ssh -i ${SSH_KEY_FILE} root@$2 '${scpcmd}'"
+	echo "remotescpcmd=${remotescpcmd}"
+	if  eval ${remotescpcmd}; then
+    	echo "${3}/${filename} Copied to IC"
+    	remotermcmd="ssh -i ${SSH_KEY_FILE} root@$2 'rm -f /tmp/tmploc/${filename}'"
+    	eval ${remotermcmd}
+    else
+        echo "Error copying ${3}/${filename} to IC"
+    fi
+}
+
+runcmd()
+{
+    local deviceip=${1:-"10.35.67.84"}
+    shift
+    local remotecmd="$@"
+    echo ${remotecmd}
+    local rcmd="ssh -i ${SSH_KEY_FILE} root@${deviceip} '${remotecmd}'"
+    echo ${rcmd}
+    eval ${rcmd}
+}
+
+update_img()
+{
+    local deviceip=${1:-"10.35.67.84"}
+	#image_file=${2:-"/home/ssingh/release/June-30-2020/update_6.12.img"}
+	#image_file=${2:-"/home/ssingh/release/August-12-2020/update_6.13.img"}
+	#image_file=${2:-"/home/ssingh/release/August-21-2020/update_6.14.img"}
+    #image_file=${2:-"/home/ssingh/release/August-24-2020/update_6.15.img"}
+    image_file=${2:-"/home/ssingh/release/September-02-2020/update_6.16.img"}
+	printf "${image_file}\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} 'mkdir -p /media/data/update'
+	image_file_name=$(basename ${image_file})
+	scp -i ${SSH_KEY_FILE} ${image_file} root@${deviceip}:/media/data/update/${image_file_name}
+	sym_cmd="ln -sf ${image_file_name} /media/data/update/update.img"
+    printf "${sym_cmd}\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'${sym_cmd}'"
+	sed_cmd="sed -i 's/^update=[0-9]\{1,\}/update=1/' /media/boot/system.cfg"
+	printf "${sed_cmd}\n"
+	#ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'${sed_cmd}'"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip}  "sed -i 's/^update=[0-9]\{1,\}/update=1/' /media/boot/system.cfg"
+	printf "rebooting....\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'nohup /sbin/reboot &>/dev/null & exit'"
+	#ssh -i ${SSH_KEY_FILE} root@${deviceip} 'cat'
+}
+
+update_version_common()
+{
+    local deviceip=${1:-"10.35.67.84"}
+	local version=$2
+	if [ -z ${version} ]
+	then
+		printf "No Version specified\n"
+		return 1
+	fi
+    
+    device_type=$(dtype ${deviceip} | head -n 2 | tail -n 1)
+    printf "device type = ${device_type}\n"
+
+
+    local img_file_suffix=${3:-".img"}
+	
+    if [ "${device_type}" == "MSC" ]
+    then
+        img_location="/home/ssingh/release/msc/"
+	else
+        img_location="/home/ssingh/release/seco/"
+		img_file_suffix=".img.encrypted"
+        if [ -z $3 ]
+        then
+            img_file_suffix=".img"
+        fi
+    fi
+
+    printf "image location = ${img_location}\n"
+
+    img_file=$(find ${img_location} -name "update_${version}${img_file_suffix}")
+	if [ -z ${img_file} ]
+	then 
+		printf "update_${version}.img not found\n"
+		return 2
+	fi
+	
+	file_count=$(printf "${img_file}\n" | wc -l)
+
+	if [ ${file_count} -ne 1 ]
+	then 
+		printf "No unique file found\n"
+		return 3
+	fi
+	
+	image_file=${img_file}
+	printf "image file = ${image_file}\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} 'rm -rf /media/data/update/update*'
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} 'mkdir -p /media/data/update'
+	image_file_name=$(basename ${image_file})
+	scp -i ${SSH_KEY_FILE} ${image_file} root@${deviceip}:/media/data/update/${image_file_name}
+	sym_cmd="ln -sf ${image_file_name} /media/data/update/update.img"
+    printf "${sym_cmd}\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'${sym_cmd}'"
+	sed_cmd="sed -i 's/^update=[0-9]\{1,\}/update=1/' /media/boot/system.cfg"
+	printf "${sed_cmd}\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip}  "sed -i 's/^update=[0-9]\{1,\}/update=1/' /media/boot/system.cfg"
+	printf "rebooting....\n"
+	ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'nohup /sbin/reboot &>/dev/null & exit'"
+}
+
+update_version()
+{
+    local deviceip=${1:-"10.35.67.84"}
+	local version=$2
+	if [ -z ${version} ]
+	then
+		printf "No Version specified\n"
+		return 1
+	fi
+    update_version_common ${deviceip} ${version}  ".img.bin"
+}
+
+non_secured_update_version()
+{
+    local deviceip=${1:-"10.35.67.84"}
+	local version=$2
+	if [ -z ${version} ]
+	then
+		printf "No Version specified\n"
+		return 1
+	fi
+    update_version_common ${deviceip} ${version}  
+}
+
+mkae()
+{
+	./build.sh native ae
+	#rm -rf ./sbox
+	mkdir -p ./sbox/native
+	cp -rf ./dist/* ./sbox/native/
+}
+
+mkarmae()
+{
+	./build.sh arm ae
+	#rm -rf ./sbox
+	mkdir -p ./sbox/arm
+	cp -rf ./dist/* ./sbox/arm/
+}
+
+runlwce()
+{
+	killall lwce
+	LD_LIBRARY_PATH=./dist ./dist/lwce --model_dir=./sbox/tests&
+}
+
+testlwae()
+{
+	LD_LIBRARY_PATH=./dist ./dist/lwcli $@
+}
+
+runlwcli()
+{
+	 LD_LIBRARY_PATH=./dist ./dist/lwcli $@ < ./sbox/inp
+}
+
+mktf()
+{
+	./build.sh native tf
+}
+
+cplwae()
+{
+    local deviceip=${1:-"10.35.67.51"}
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'rm /media/data/BLKQCL-LWAE/lwce'
+    #ssh -i ${SSH_KEY_FILE} root@${deviceip} 'rm /media/data/BLKQCL-LWAE/lwcli'
+    scp -i ${SSH_KEY_FILE} ./lwce root@${deviceip}:/media/data/BLKQCL-LWAE/
+    ssh -i ${SSH_KEY_FILE} root@${deviceip} 'systemctl restart blkqcl-LWAE'
+    #ssh -i ${SSH_KEY_FILE} root@${deviceip} sh -c "'nohup /sbin/reboot &>/dev/null & exit'"
+}
+
+rmssh()
+{
+	line_num=$1
+	if [ -z ${line_num} ]
+	then
+		printf "No line number specified\n"
+		return
+	fi
+	
+	echo "sed '${line_num}d' /home/ssingh/.ssh/known_hosts"
+	sed -i "${line_num}d" /home/ssingh/.ssh/known_hosts
+}
+
+bdev()
+{
+	netstat -i | awk '!/(^Iface|^Kernel|^lo)/{print $1}' | xargs -I{} gssdp-discover -i {} --timeout=1 2>/dev/null | grep "Location" | awk '{print $2}' | sort | uniq | xargs curl  --silent 2>/dev/null | awk -F '[<>]' '/friendlyName/ {printf "%s : " ,$3} /presentationURL/{gsub(/http:\/\//,"",$3);gsub(/\//,"",$3);printf "%s\n",$3}'
+}
+
+lwupver()
+{
+    make bump-version-release
+    version=$(cat ./VERSION)
+    awk -v ver=${version} '/\"version\" *: *\".+\"/{print "  \"version\": \""ver"\","} !/\"version\" *: *\".+\"/{print}' ./LaserWarn-UI/package.json > /tmp/package.json
+    mv /tmp/package.json ./LaserWarn-UI/package.json
+    awk -v ver=${version} 'BEGIN{FOUND=0}/\"version\" *: *\".+\"/{if(FOUND==0){FOUND=1;print "  \"version\": \""ver"\","}else{print}} !/\"version\" *: *\".+\"/{print}' ./LaserWarn-UI/package-lock.json > /tmp/package-lock.json
+    mv /tmp/package-lock.json ./LaserWarn-UI/package-lock.json
+}
+
+lwupverdev()
+{
+    make bump-version-start-dev
+    version=$(cat ./VERSION)
+    awk -v ver=${version} '/\"version\" *: *\".+\"/{print "  \"version\": \""ver"\","} !/\"version\" *: *\".+\"/{print}' ./LaserWarn-UI/package.json > /tmp/package.json
+    mv /tmp/package.json ./LaserWarn-UI/package.json
+    awk -v ver=${version} 'BEGIN{FOUND=0}/\"version\" *: *\".+\"/{if(FOUND==0){FOUND=1;print "  \"version\": \""ver"\","}else{print}} !/\"version\" *: *\".+\"/{print}' ./LaserWarn-UI/package-lock.json > /tmp/package-lock.json
+    mv /tmp/package-lock.json ./LaserWarn-UI/package-lock.json
+}
+
+gitglog()
+{
+    git log --graph --all --oneline --decorate
+}
+gitlog()
+{
+   local num=${1:-5}
+   git log -${num} --oneline 
+}
+gitmod()
+{
+    git st | awk '{if($1 == "modified:")print $2}'
+}
+
+gitpush()
+{
+    brname=$(git br | egrep "^\* " | sed 's/\* //')
+    echo "git push origin ${brname}"
+    git push origin ${brname}
+}
+
+gitpull()
+{
+    brname=$(git br | egrep "^\* " | sed 's/\* //')
+    echo "git pull origin ${brname}"
+    git pull origin ${brname}
+}
+
+addusr()
+{
+    username=$1
+    password=${2:-"abc123"}
+    encrpasswd=$(perl -e "print crypt('${password}','sa');")
+    echo "user : ${username}"
+    echo "password : ${password}"
+    echo "encrypted password : ${encrpasswd}"
+    sudo useradd  -p ${encrpasswd} -m ${username}
+    sudo usermod -d /home/${username} -aG sudo -m ${username}
+}
+
+function dtype() 
+{
+    typeset knlver
+    typeset majorver
+    knlver=$(ssh -i ${SSH_KEY_FILE} root@$1 'uname -r')
+    majorver=$(echo ${knlver} | awk -F. '{print $1}')
+    echo kernel version is ${knlver}
+    case ${majorver} in
+        4 ) echo "SECO" ;;
+        3 ) echo "MSC" ;;
+        * ) echo "UNKNOWN" ;;
+    esac
+    
+}
+
+mkimgpl ()
+{
+    if [ -z $1 ]; then
+        printf "Please provide device base .e.g. /dev/sdb\n";
+        return 1;
+    fi;
+    typeset device_base;
+    device_base=$1;
+    sudo sfdisk --force ${device_base}  <<EOF
+,300M,0xb,*
+,,0x83,-
+EOF
+
+    sync;
+    sudo partprobe ${device_base};
+    sudo blockdev --rereadpt ${device_base};
+    sleep 2;
+    sudo mkfs.vfat -F 32 ${device_base}1;
+    sudo mkfs.ext4 ${device_base}2;
+    typeset tmp_dir;
+    tmp_dir=/tmp/sdmount/;
+    rm -rf ${tmp_dir};
+    mkdir -p ${tmp_dir};
+    sudo mount ${device_base}1 ${tmp_dir};
+    if ! sudo cp BOOT.BIN ${tmp_dir} > /dev/null 2>&1; then
+        printf "BOOT.BIN file not found\n";
+        return 1;
+    fi;
+    if ! sudo cp image.ub ${tmp_dir} > /dev/null 2>&1; then
+        printf "image.ub file not found\n";
+        return 1;
+    fi;
+    sync;
+    ls --color=auto -l ${tmp_dir};
+    sudo umount ${device_base}1;
+    sudo dd if=rootfs.ext4 of=${device_base}2 status=progress;
+    sync;
+    sudo mount ${device_base}2 ${tmp_dir};
+    ls --color=auto -l ${tmp_dir};
+    sudo umount ${device_base}2
+}
+
+secosetup()
+{
+    git clone git@github.com:BlockEngineering/sysrelease-builder-docker.git
+    cd sysrelease-builder-docker
+    mkdir -p workspace
+    cd workspace
+    git clone git@github.com:BlockEngineering/BLKQCL-SystemRelease.git -b Release-v6-seco
+    cd BLKQCL-SystemRelease
+    git submodule update --init --recursive
+    cd ../..
+    cp ${HOME}/.ssh/id_rsa ./private_key
+    cp ${HOME}/.ssh/id_rsa.pub ./public_key.pub
+    #typeset NFS_MNT_DIR
+    #export NFS_MNT_DIR=workspace/secosrc/nfsmnt
+    #sudo umount $NFS_MNT_DIR
+    #sudo mkdir -p $NFS_MNT_DIR
+    #sudo mount -t nfs 10.35.67.218:/media/raid1/seco/git $NFS_MNT_DIR
+    #typeset SECO_GIT_DIR
+    #SECO_GIT_DIR=workspace/secosrc/git
+    #sudo git clone $NFS_MNT_DIR/u-boot-2015-04-secoboards-imx6-rel $SECO_GIT_DIR/
+    #sudo git clone $NFS_MNT_DIR/linux-4-1-15-secoboards-imx6-rel $SECO_GIT_DIR/
+    ./run.sh -it --no-checkout -w workspace
+}
+
+setdevicepasswd()
+{
+    if [ $# -ne 2 ]; then
+        echo "usage: setpasswd.sh [-p|-d] <device_ip>"
+        return
+    fi
+    
+    typeset dev_pwd_encr='$6$smNzUoFlXI/jdAw$utNWQBGpqwTXuYkARYBuRjtfdIFtEX2dsLQH3wE945NN94hy2ov/kAR.cWo2NbAVxwMxQ6JCAhOqkE/Ty3D921'
+    typeset prod_pwd_encr='$6$smNzUoFlXI/jdAw$MwiU3VcJdb0UMrloiqmBVIYlCPYGtodpRVJFnjLzAVXfYD6tgGcZ31sec3GaSFUZb1AbjAcSFExnXoiHKE1nw/'
+    typeset remote_pwd_cmd
+    if [ $1 == "-p" ]; then
+        remote_pwd_cmd="usermod -p "${prod_pwd_encr}" root" 
+        local remotecmd="ssh -i ${SSH_KEY_FILE} root@$2 '${remote_pwd_cmd}'"
+        echo ${remotecmd}
+        if  eval ${remotecmd}; then
+            echo "Production password is set"
+        else
+            echo "ERROR in setting Production password"
+            return
+        fi
+    elif [ $1 == "-d" ]; then
+        remote_pwd_cmd="usermod -p "${dev_pwd_encr}" root"
+        local remotecmd="ssh -i ${SSH_KEY_FILE} root@$2 '${remote_pwd_cmd}'"
+        echo ${remotecmd}
+        if  eval ${remotecmd}; then
+            echo "Development password is set"
+        else
+            echo "ERROR in setting Development password"
+            return
+        fi
+    else
+        echo "usage: setpasswd.sh [-p|-d] <device_ip>"
+        return
+    fi
+}
+
+svnusradd()
+{
+    if [ -z $1 ]; then
+        printf "Please provide user name Usage: svnusradd <user_name>\n";
+        return 1;
+    fi;
+    typeset username=$1
+    typeset svn_server_ip=10.36.5.9
+    echo "ssh -i /home/ssingh/keys/laptopwin.priv ssingh@10.36.5.9"
+    echo "sudo -s"
+    echo "adduser  ${username}"
+    echo "usermod -a -G sudo,svn ${username}"
+    echo "rm /home/ssingh/keys/pub_key_file"
+    echo "#################### Copy pub_key_file to svn server at /home/ssingh/keys/pub_key_file#######################"
+    echo "cat /home/ssingh/keys/pub_key_file >>  /home/${username}/.ssh/authorized_keys"
+    echo "rm /home/ssingh/keys/pub_key_file"
+    echo "cat /home/${username}/.ssh/authorized_keys >> /home/svn/.ssh/authorized_keys"
+}
