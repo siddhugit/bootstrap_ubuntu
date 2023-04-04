@@ -17,11 +17,11 @@ sudo systemctl enable ssh
 sudo ufw allow ssh
 
 #edit bashrc
-bash -c 'echo "PATH=$PATH:~/bin/" >> ${HOME}/.bashrc'
+bash -c 'echo "PATH=\$PATH:~/bin/" >> ${HOME}/.bashrc'
 bash -c 'echo "source myaliases" >> ${HOME}/.bashrc'
 bash -c 'echo "source func" >> ${HOME}/.bashrc'
-bash -c 'echo "export PS1="\\w:\$(git branch 2>/dev/null | grep '^*' | colrm 1 2)\$ "" >> ${HOME}/.bashrc'
-bash -c 'echo "eval $(ssh-agent)" >> ${HOME}/.bashrc'
+bash -c 'echo 'export PS1="\\w:\$(git branch 2>/dev/null | grep '^*' | colrm 1 2)\$ "' >> ${HOME}/.bashrc'
+bash -c 'echo "eval \$(ssh-agent)" >> ${HOME}/.bashrc'
 bash -c 'echo "ssh-add" >> ${HOME}/.bashrc'
 
 #copy files 
