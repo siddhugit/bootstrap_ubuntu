@@ -656,3 +656,13 @@ svnusradd()
     echo "rm /home/ssingh/keys/pub_key_file"
     echo "cat /home/${username}/.ssh/authorized_keys >> /home/svn/.ssh/authorized_keys"
 }
+
+fndsrc ()
+{
+    if [ -z $1 ]; then
+        printf "Please provide text to search\n";
+        return 1;
+    fi;
+    echo \""$@"\";
+    find . -name "*.h" -o -name "*.cpp" -o -name "*.c" -o -name "*.C" -o -name "*.hpp" | xargs grep -i "$@"
+}
