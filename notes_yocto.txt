@@ -1,0 +1,8 @@
+#local.conf
+For high level configuration ( e.g. MACHINE, DISTRO etc)
+
+#bblayers.conf
+BBLAYERS env variable thats says which layers are included
+commands: 
+bitbake-layers show-layers
+bitbake-layers add-layer <path> ( path of an existing directory )
