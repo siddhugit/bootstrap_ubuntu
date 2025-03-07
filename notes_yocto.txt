@@ -6,3 +6,11 @@ BBLAYERS env variable thats says which layers are included
 commands: 
 bitbake-layers show-layers
 bitbake-layers add-layer <path> ( path of an existing directory )
+
+#Add an exisiting package
+(1)verify existing recipes
+bitbake-layers show-recipes <package_name>
+(2) Verify if layer is added otherwise bitbake-layers add-layer
+(3)Add the package in local.conf (notice the space before package name)
+e.g.IMAGE_INSTALL:append = " git"
+
