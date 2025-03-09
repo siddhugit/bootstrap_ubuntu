@@ -43,5 +43,19 @@ S (Source, defaults to WORKDIR/BPN-PV)
 D (Destination, defaults to WORKDIR/image)
 B (Build Directory, defaults to S)
 
+#Variable Assignments
+?= : This is used to assign the default value to varibale. It can be overridden.
+??= : This is used to assign the default value to varibale. But it is a weak assignment. It can be overridden. If multiple assignments are done with this type, the the last one will be considered.
+= : This is a simple variable assignment. It requires " " and spaces are significant. But variables are expanded at the end.
+:= : This is an immediate variable expansion. The value assigned is expanded immediately.
++= : This appends a value to a variable. The operator inserts a space between the current value and appended value. It takes effect immediately.
+=+ : This prepends a value to a variable, The operator inserts a space between the current value and prepended value. It takes effect immediately.
+.= : This appends a value to a variable. The operator inserts no space between the current value and appended value. It takes effect immediately.
+=. : This prepends a value to a variable. The operator inserts no space between the current value and prepended value. It takes effect immediately.
+:append : This appends a value to a variable. The operator inserts no space between the current value and appended value. The effects are applied at variable expansion time rather than being immediately applied.
+:prepend : This appends a value to a variable. The operator inserts no space between the current value and appended value. The effects are applied at variable expansion time rather than being immediately applied.
+:remove : This remove values from lists. Specifying a value for removal causes all occurrences of that value to be removed from the variable.
+
+
 
 
